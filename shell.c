@@ -107,6 +107,9 @@ static int get_pty_old(char *tty_str, int buf_size)
 /* allocate one pty/tty pair (Unix 98 way) */
 static int get_pty(char *tty_buf, int tty_buf_size)
 {
+#ifdef ZIPIT_Z2
+    return get_pty_old(tty_buf, tty_buf_size);
+#else
     int fd;
     char *str;
 
@@ -126,6 +129,7 @@ static int get_pty(char *tty_buf, int tty_buf_size)
  fail:
     close(fd);
     return -1;
+#endif
 }
 
 

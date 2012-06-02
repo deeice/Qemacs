@@ -346,7 +346,11 @@ typedef struct QEExposeEvent {
 
 /* should probably go somewhere else, or in the config file */
 /* how many text lines to scroll when mouse wheel is used */
+#if 1 /* ZIPIT_Z2 */
+#define WHEEL_SCROLL_STEP 1
+#else
 #define WHEEL_SCROLL_STEP 4
+#endif
 
 typedef struct QEButtonEvent {
     enum QEEventType type;

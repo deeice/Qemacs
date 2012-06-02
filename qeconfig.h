@@ -12,6 +12,10 @@ CmdDef basic_commands[] = {
     CMD1( KEY_META('f'), KEY_CTRL_RIGHT, "forward-word", do_word_right, 1 )
     CMD1( KEY_META('v'), KEY_PAGEUP, "scroll-down", do_scroll_up_down, -1 )
     CMD1( KEY_CTRL('v'), KEY_PAGEDOWN, "scroll-up", do_scroll_up_down, 1 )
+#if 1 /* ZIPIT_Z2 */
+    CMD1( KEY_META('z'), KEY_NONE, "scroll-down", wheel_scroll_up_down, -1 )
+    CMD1( KEY_CTRL('z'), KEY_NONE, "scroll-up", wheel_scroll_up_down, 1 )
+#endif
     CMD0( KEY_HOME, KEY_CTRL('a'), "beginning-of-line", do_bol)
     CMD0( KEY_END, KEY_CTRL('e'), "end-of-line", do_eol)
     CMD0( KEY_ESC1(2), KEY_NONE, "overwrite-mode", do_insert)
