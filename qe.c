@@ -1275,6 +1275,8 @@ void do_kill_region(EditState *s, int kill)
     QEmacsState *qs = s->qe_state;
     EditBuffer *b;
 
+    static int p3 = -1;
+
     if (s->b->flags & BF_READONLY)
         return;
 
@@ -1300,11 +1302,18 @@ void do_kill_region(EditState *s, int kill)
         p2 = tmp;
     }
     len = p2 - p1;
-    b = new_yank_buffer();
-    eb_insert_buffer(b, 0, s->b, p1, len);
+    if ((p3 == s->offset) && (qs->last_cmd_func == do_kill_region)) {
+        b = qs->yank_buffers[qs->yank_current];
+        eb_insert_buffer(b, b->total_size, s->b, p1, len);
+    } else {
+        b = new_yank_buffer();
+        eb_insert_buffer(b, 0, s->b, p1, len);
+    }
+
     if (kill) {
         eb_delete(s->b, p1, len);
         s->offset = p1;
+        p3 = p1;
     }
     selection_activate(qs->screen);
 }
