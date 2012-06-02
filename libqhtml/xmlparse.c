@@ -174,7 +174,7 @@ static void strbuf_addch1(StringBuffer *b, int ch)
         b->buf = ptr;
         b->allocated_size = size1;
 
-        p = utf8_encode(b->buf + b->size, ch);
+        p = utf8_encode((char *)(b->buf + b->size), ch);
         b->size = p - (char *)b->buf;
     }
 }
@@ -184,7 +184,7 @@ static inline void strbuf_addch(StringBuffer *b, int ch)
     const char *p;
     if (b->size < b->allocated_size) {
         /* fast case */
-        p = utf8_encode(b->buf + b->size, ch);
+        p = utf8_encode((char *)(b->buf + b->size), ch);
         b->size = p - (char *)b->buf;
     } else {
         strbuf_addch1(b, ch);
@@ -200,6 +200,7 @@ typedef struct OffsetBuffer {
     unsigned int last_offset;
 } OffsetBuffer;
 
+#if 0
 static void offsetbuf_init(OffsetBuffer *b)
 {
     b->offsets = NULL;
@@ -238,6 +239,7 @@ static void offsetbuf_add(OffsetBuffer *b, unsigned int offset)
     }
     b->last_offset = offset;
 }
+#endif
 
 #define LOOKAHEAD_SIZE  16
 
@@ -423,7 +425,7 @@ static void html_eval_tag(XMLState *s, CSSBox *box)
             /* if no alt, display the name of the image */
             value = css_attr_str(box, CSS_ID_src);
             if (value)
-                value = basename(value);
+                value = qe_basename(value);
         }
         if (value && value[0] != '\0') {
             arg.type = CSS_VALUE_STRING;
@@ -1064,7 +1066,8 @@ static int xml_parse_internal(XMLState *s, const char *buf_start, int buf_len,
         if (buf) {
             if (buf >= buf_end)
                 break;
-            ch = charset_decode(&s->charset_state, &buf);
+            ch = charset_decode(&s->charset_state, 
+                                (const unsigned char **)&buf);
         } else {
             if (offset >= offset_end)
                 break;
@@ -1083,7 +1086,7 @@ static int xml_parse_internal(XMLState *s, const char *buf_start, int buf_len,
         case XML_STATE_TAG:
             if (ch == '>') {
                 strbuf_addch(&s->str, '\0');
-                ret = parse_tag(s, s->str.buf);
+                ret = parse_tag(s, (char *)s->str.buf);
                 switch(ret) {
                 default:
                 case XML_STATE_TEXT:
@@ -1115,7 +1118,7 @@ static int xml_parse_internal(XMLState *s, const char *buf_start, int buf_len,
                    not flush if comment */
                 if (buf) {
                     strbuf_addch(&s->str, '\0');
-                    flush_text(s, s->str.buf);
+                    flush_text(s, (char *)s->str.buf);
                     strbuf_reset(&s->str);
                 } else {
                     flush_text_buffer(s, text_offset_start, offset0);
@@ -1159,13 +1162,13 @@ static int xml_parse_internal(XMLState *s, const char *buf_start, int buf_len,
                 if (len >= 0 && 
                     s->str.buf[len] == '<' && 
                     s->str.buf[len + 1] == '/' &&
-                    !xml_tagcmp(s->str.buf + len + 2, s->pretag)) {
+                    !xml_tagcmp((char *)(s->str.buf + len + 2), s->pretag)) {
                     s->str.buf[len] = '\0';
                     
                     if (!xml_tagcmp(s->pretag, "style")) {
                         if (s->style_sheet) {
                             CSSParseState b1, *b = &b1;
-                            b->ptr = s->str.buf;
+                            b->ptr = (char *)s->str.buf;
                             b->line_num = s->line_num; /* XXX: incorrect */
                             b->filename = s->filename;
                             b->ignore_case = s->ignore_case;
@@ -1176,7 +1179,7 @@ static int xml_parse_internal(XMLState *s, const char *buf_start, int buf_len,
                     } else {
                         /* just add the content */
                         if (buf) {
-                            flush_text(s, s->str.buf);
+                            flush_text(s, (char *)s->str.buf);
                         } else {
                             /* XXX: would be incorrect if non ascii chars */
                             flush_text_buffer(s, text_offset_start, offset - taglen);

@@ -78,7 +78,7 @@ int find_file_next(FindFileState *s, char *filename, int filename_size_max);
 void find_file_close(FindFileState *s);
 void canonize_path(char *buf, int buf_size, const char *path);
 void canonize_absolute_path(char *buf, int buf_size, const char *path1);
-const char *basename(const char *filename);
+const char *qe_basename(const char *filename);
 const char *pathname(char *buf, int buf_size, const char *filename);
 
 int find_resource_file(char *path, int path_size, const char *pattern);
@@ -236,7 +236,7 @@ QECharset *find_charset(const char *str);
 void charset_decode_init(CharsetDecodeState *s, QECharset *charset);
 void charset_decode_close(CharsetDecodeState *s);
 
-static inline int charset_decode(CharsetDecodeState *s, const char **pp)
+static inline int charset_decode(CharsetDecodeState *s, const unsigned char **pp)
 {
     const unsigned char *p;
     int c;
@@ -257,7 +257,7 @@ QECharset *detect_charset (const unsigned char *buf, int size);
 void decode_8bit_init(CharsetDecodeState *s);
 unsigned char *encode_8bit(QECharset *charset, unsigned char *q, int c);
 
-int unicode_to_charset(char *buf, unsigned int c, QECharset *charset);
+int unicode_to_charset(unsigned char *buf, unsigned int c, QECharset *charset);
 
 /* arabic.c */
 int arab_join(unsigned int *line, unsigned int *ctog, int len);
@@ -582,10 +582,10 @@ extern EditBufferDataType raw_data_type;
 #define __exit_call	__attribute__ ((unused,__section__ (".exitcall.exit")))
 
 #define qe_module_init(fn) \
-	static int (*__initcall_##fn)(void) __init_call = fn
+	int (*__initcall_##fn)(void) __init_call = fn
 
 #define qe_module_exit(fn) \
-	static void (*__exitcall_##fn)(void) __exit_call = fn
+	void (*__exitcall_##fn)(void) __exit_call = fn
 #else
 
 #define __init_call
@@ -716,7 +716,7 @@ typedef struct EditState {
     struct EditState *next_window;
 } EditState;
 
-#define SAVED_DATA_SIZE ((int)&((EditState *)0)->end_of_saved_data)
+#define SAVED_DATA_SIZE ((intptr_t)&((EditState *)0)->end_of_saved_data)
 
 int to_hex(int key);
 

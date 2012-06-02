@@ -240,7 +240,7 @@ void canonize_absolute_path(char *buf, int buf_size, const char *path1)
 }
 
 /* last filename in a path */
-const char *basename(const char *filename)
+const char *qe_basename(const char *filename)
 {
     const char *p;
     p = strrchr(filename, '/');

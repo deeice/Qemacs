@@ -1,6 +1,6 @@
 /*
  * TTY handling for QEmacs
- * Copyright (c) 2000,2001 Fabrice Bellard.
+ * Copyright (c) 2000, 2001 Fabrice Bellard.
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -70,14 +70,81 @@ static int term_probe(void)
     return 1;
 }
 
-extern QEDisplay tty_dpy;
+static QEDisplay tty_dpy;
+
+
+#define MAX_WH 500
+
+/* return (0,0) if error */
+static void get_cursor_pos(int *pw, int *ph)
+{
+    int w, h, c, state;
+    printf("\033[6n");
+    fflush(stdout);
+    w = 0;
+    h = 0;
+    state = 0;
+    for(;;) {
+        c = getchar();
+        switch(state) {
+        case 0:
+            if (c == 27)
+                state = 1;
+            break;
+        case 1:
+            if (c == '[')
+                state = 2;
+            else
+                state = 0;
+            break;
+        case 2:
+            if (c >= '0' && c <= '9') {
+                h = h * 10 + c - '0';
+            } else if (c == ';') {
+                state = 3;
+            } else {
+                goto fail;
+            }
+            break;
+        case 3:
+            if (c >= '0' && c <= '9') {
+                w = w * 10 + c - '0';
+            } else if (c == 'R') {
+                goto the_end;
+            } else {
+                goto fail;
+            }
+            break;
+        }
+    }
+ the_end:
+    *pw = w;
+    *ph = h;
+    return;
+ fail:
+    *pw = 0;
+    *ph = 0;
+}
+
+/* get the screen size using VT100 commands */
+static void tty_get_screen_size(int *pw, int *ph)
+{
+    int w, h;
+    printf("\033[%d;%dH", MAX_WH, MAX_WH);
+    get_cursor_pos(&w, &h);
+    if (h < 1 || w < 1 || h > MAX_WH || w > MAX_WH) {
+        w = 80;
+        h = 25;
+    }
+    *pw = w;
+    *ph = h;
+}
 
 static int term_init(QEditScreen *s, int w, int h)
 {
     TTYState *ts;
     struct termios tty;
     struct sigaction sig;
-    int y, x;
 
     memcpy(&s->dpy, &tty_dpy, sizeof(QEDisplay));
 
@@ -100,6 +167,7 @@ static int term_init(QEditScreen *s, int w, int h)
     
     tcsetattr (0, TCSANOW, &tty);
 
+#if 0
     /* test UTF8 support by looking at the cursor position (idea from
        Ricardas Cepas <rch@pub.osf.lt>). Since uClibc actually tests
        to ensure that the format string is a valid multibyte sequence
@@ -112,7 +180,10 @@ static int term_init(QEditScreen *s, int w, int h)
     if (x == 2) {
         s->charset = &charset_utf8;
     }
-    
+#else
+    s->charset = &charset_8859_1;
+#endif
+
     atexit(term_exit);
 
     sig.sa_handler = tty_resize;
@@ -128,7 +199,7 @@ static int term_init(QEditScreen *s, int w, int h)
 
     set_read_handler(0, tty_read_handler, s);
 
-    tty_resize(0);
+    tty_resize(-1);
     return 0;
 }
 
@@ -152,14 +223,18 @@ static void tty_resize(int sig)
 {
     QEditScreen *s = tty_screen;
     TTYState *ts = s->private;
-    struct winsize ws;
     int size;
 
-    s->width = 80;
-    s->height = 24;
-    if (ioctl(0, TIOCGWINSZ, &ws) == 0) {
-        s->width = ws.ws_col;
-        s->height = ws.ws_row;
+    if (sig == -1) {
+        tty_get_screen_size(&s->width, &s->height);
+    } else {
+        struct winsize ws;
+        s->width = 80;
+        s->height = 24;
+        if (ioctl(0, TIOCGWINSZ, &ws) == 0) {
+            s->width = ws.ws_col;
+            s->height = ws.ws_row;
+        }
     }
     
     size = s->width * s->height * sizeof(TTYChar);
@@ -213,7 +288,7 @@ static void tty_read_handler(void *opaque)
     if (s->charset == &charset_utf8) {
         if (ts->utf8_state == 0) {
             const char *p;
-            p = ts->buf;
+            p = (const char *)ts->buf;
             ch = utf8_decode(&p);
         } else {
             ts->utf8_state = utf8_length[ts->buf[0]] - 1;
@@ -519,7 +594,8 @@ static void term_flush(QEditScreen *s)
                             buf[0] = '.';
                             buf[1] = '\0';
                         } else {
-                            unicode_to_charset(buf, cc, s->charset);
+                            unicode_to_charset((unsigned char *)buf, 
+                                               cc, s->charset);
                         }
                         printf("%s", buf);
                     }

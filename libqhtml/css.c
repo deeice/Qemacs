@@ -36,11 +36,11 @@ static void css_counter_str(char *text, int text_size,
                             int index, int list_style_type, int adjust);
 
 #define CSSDEF(str, ident, inherited, type) \
-  { str, (int)&((CSSState *)0)->ident, CSS_STORAGE_INT, \
+  { str, (intptr_t)&((CSSState *)0)->ident, CSS_STORAGE_INT, \
     type | (inherited ? CSS_TYPE_INHERITED : 0) },
 
 #define CSSDEF1(str, ident, inherited, type, storage) \
-  { str, (int)&((CSSState *)0)->ident, storage, \
+  { str, (intptr_t)&((CSSState *)0)->ident, storage, \
     type | (inherited ? CSS_TYPE_INHERITED : 0) },
 #define CSSUNDEF(str)
 

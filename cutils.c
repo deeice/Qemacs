@@ -20,6 +20,7 @@
 #include <stdio.h>
 #include <stdarg.h>
 #include <ctype.h>
+#include <string.h>
 
 #include "cutils.h"
 
@@ -155,7 +156,7 @@ int qmemcat(QString *q, const unsigned char *data1, int len1)
  */
 int qstrcat(QString *q, const char *str)
 {
-    return qmemcat(q, str, strlen(str));
+    return qmemcat(q, (const unsigned char *)str, strlen(str));
 }
 
 /* XXX: we use a fixed size buffer */
@@ -170,7 +171,7 @@ int qprintf(QString *q, const char *fmt, ...)
     /* avoid problems for non C99 snprintf() which can return -1 if overflow */
     if (len < 0)
         len = strlen(buf);
-    ret = qmemcat(q, buf, len);
+    ret = qmemcat(q, (const unsigned char *)buf, len);
     va_end(ap);
     return ret;
 }

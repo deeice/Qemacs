@@ -63,7 +63,8 @@ static int shm_use;
 static XftDraw		*renderDraw;
 #endif
 #ifdef CONFIG_XV
-static unsigned int xv_nb_formats, xv_nb_adaptors, xv_port, xv_format, xv_open_count;
+static unsigned int xv_nb_adaptors, xv_port, xv_format, xv_open_count;
+static int xv_nb_formats;
 static XvAdaptorInfo *xv_ai;
 static XvImageFormatValues *xv_fo;
 #endif
@@ -76,7 +77,7 @@ static int update_nb;
 static CSSRect update_rects[UPDATE_MAX_REGIONS];
 #endif
 
-extern QEDisplay x11_dpy;
+static QEDisplay x11_dpy;
 static int visual_depth;
 
 static int force_tty = 0;
@@ -1044,11 +1045,12 @@ static void term_selection_request(QEditScreen *s)
 {
     Window w;
     Atom prop;
-    long nread, bytes_after;
+    long nread;
+    unsigned long bytes_after;
     unsigned char *data;
     Atom actual_type;
     int actual_fmt;
-    long nitems;
+    unsigned long nitems;
     EditBuffer *b;
     XEvent xev;
 
@@ -1123,7 +1125,7 @@ static void selection_send(XSelectionRequestEvent *rq)
 
  	XChangeProperty (display, rq->requestor, rq->property,
  			 xa_targets, 8*sizeof(target_list[0]), PropModeReplace,
- 			 (char *)target_list,
+ 			 (unsigned char *)target_list,
 			 sizeof(target_list)/sizeof(target_list[0]));
     } else if (rq->target == XA_STRING) {
         /* get qemacs yank buffer */
@@ -1244,7 +1246,7 @@ static void x11_handle_event(void *opaque)
             /* only present since XFree 4.0.2 */
             {
                 Status status;
-                len = Xutf8LookupString(xic, (XKeyEvent *)&xev, buf,
+                len = Xutf8LookupString(xic, (XKeyEvent *)&xev, (char *)buf,
                                         sizeof(buf),
                                         &keysym, &status);
             }
@@ -1349,7 +1351,7 @@ static void x11_handle_event(void *opaque)
                     if (len > 0) {
 #ifdef X_HAVE_UTF8_STRING
                         {
-                            const char *p = buf;
+                            const char *p = (const char *)buf;
                             buf[len] = '\0';
                             key = utf8_decode(&p);
                         }
@@ -1601,7 +1603,7 @@ static void x11_bmp_lock(QEditScreen *s, QEBitmap *b, QEPicture *pict,
             ximage = XCreateImage(display, None, attr.depth, ZPixmap, 0, 
                                   NULL, w1, h1, 8, 0);
             ximage->data = malloc(h1 * ximage->bytes_per_line);
-            pict->data[0] = ximage->data;
+            pict->data[0] = (unsigned char *)ximage->data;
             pict->linesize[0] = ximage->bytes_per_line;
             xb->ximage_lock = ximage;
             xb->x_lock = x1;
@@ -1611,7 +1613,7 @@ static void x11_bmp_lock(QEditScreen *s, QEBitmap *b, QEPicture *pict,
     case BMP_XIMAGE:
     case BMP_XSHMIMAGE:
         bpp = (xb->u.ximage->bits_per_pixel + 7) >> 3;
-        pict->data[0] = xb->u.ximage->data + 
+        pict->data[0] = (unsigned char *)xb->u.ximage->data + 
             y1 * xb->u.ximage->bytes_per_line + x1 * bpp;
         pict->linesize[0] = xb->u.ximage->bytes_per_line;
         break;
@@ -1631,8 +1633,8 @@ static void x11_bmp_lock(QEditScreen *s, QEBitmap *b, QEPicture *pict,
                     yy >>= 1;
                     j = 3 - i; /* don't know why they inverted Cb and Cr! */
                 }
-                pict->data[j] = xvimage->data + xvimage->offsets[i] + 
-                    yy * xvimage->pitches[i] + xx;
+                pict->data[j] = (unsigned char *)xvimage->data + 
+                    xvimage->offsets[i] + yy * xvimage->pitches[i] + xx;
                 pict->linesize[j] = xvimage->pitches[i];
             }
         }

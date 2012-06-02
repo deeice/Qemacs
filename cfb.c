@@ -72,7 +72,7 @@ static void cfb16_fill_rectangle(QEditScreen *s,
             d = dest;
             n = w;
             
-            if (((int)d & 3) != 0) {
+            if (((intptr_t)d & 3) != 0) {
                 ((short *)d)[0] = col;
                 d += 2;
                 n--;

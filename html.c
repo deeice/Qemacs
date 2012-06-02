@@ -105,7 +105,7 @@ void css_error(const char *filename, int line_num, const char *msg)
         b = eb_new(HTML_ERROR_BUFFER, BF_READONLY);
     if (!b)
         return;
-    eb_printf(b, "%s:%d: %s\n", basename(filename), line_num, msg);
+    eb_printf(b, "%s:%d: %s\n", qe_basename(filename), line_num, msg);
 }
 
 
@@ -836,7 +836,7 @@ static int html_mode_probe(ModeProbeData *p1)
             break;
 	if (c < 32 && (c != '\r' && c != '\n' && c != '\t' && c != '\e'))
             return 0;
-        if (stristart(p, "<HTML", NULL))
+        if (stristart((char *)p, "<HTML", NULL))
             score = 100;
         p++;
     }

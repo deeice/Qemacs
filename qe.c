@@ -29,8 +29,8 @@ typedef struct HistoryEntry {
     char name[32];
 } HistoryEntry;
 
-static int (*__initcall_first)(void) __init_call = NULL;
-static void (*__exitcall_first)(void) __exit_call = NULL;
+int (*__initcall_first)(void) __init_call = NULL;
+void (*__exitcall_first)(void) __exit_call = NULL;
 
 static int get_line_height(QEditScreen *screen, int style_index);
 void print_at_byte(QEditScreen *screen,
@@ -573,7 +573,7 @@ void do_fill_paragraph(EditState *s)
 static int eb_changecase(EditBuffer *b, int offset, int up)
 {
     int offset1, ch, len;
-    char buf[MAX_CHAR_BYTES];
+    unsigned char buf[MAX_CHAR_BYTES];
 
     ch = eb_nextc(b, offset, &offset1);
     if (ch < 128) {
@@ -1123,7 +1123,7 @@ void do_char(EditState *s, int key)
 void text_write_char(EditState *s, int key)
 {
     int cur_ch, len, cur_len, offset1, ret, insert;
-    char buf[MAX_CHAR_BYTES];
+    unsigned char buf[MAX_CHAR_BYTES];
 
     cur_ch = eb_nextc(s->b, s->offset, &offset1);
     cur_len = offset1 - s->offset;
@@ -1536,7 +1536,7 @@ void do_convert_buffer_file_coding_system(EditState *s,
     QECharset *charset;
     EditBuffer *b1, *b;
     int offset, c, len;
-    char buf[MAX_CHAR_BYTES];
+    unsigned char buf[MAX_CHAR_BYTES];
     
     charset = read_charset(s, charset_str);
     if (!charset)
@@ -1803,10 +1803,10 @@ void do_set_style(EditState *e, const char *stylestr,
     }
     switch(prop_index) {
     case 0:
-        css_get_color(&style->fg_color, value);
+        css_get_color((int *)&style->fg_color, value);
         break;
     case 1:
-        css_get_color(&style->bg_color, value);
+        css_get_color((int *)&style->bg_color, value);
         break;
     case 2:
         v = css_get_font_family(value);
@@ -2088,7 +2088,7 @@ static void flush_line(DisplayState *s,
                 /* RTL eol mark */
                 if (!last && s->base == DIR_RTL) {
                     /* XXX: optimize that ! */
-                    int markbuf[1];
+                    unsigned int markbuf[1];
                 
                     font = select_font(screen, 
                                        default_style.font_style, 
@@ -2114,7 +2114,7 @@ static void flush_line(DisplayState *s,
                 /* LTR eol mark */
                 if (!last && s->base == DIR_LTR) {
                     /* XXX: optimize that ! */
-                    int markbuf[1];
+                    unsigned int markbuf[1];
                 
                     font = select_font(screen, 
                              default_style.font_style, default_style.font_size);
@@ -2568,7 +2568,7 @@ static int bidir_compute_attributes(TypeLink *list_tab, int max_size,
 }
 #endif
 
-#ifndef CONFIG_TINY
+#if !defined(CONFIG_TINY) || 1
 /************************************************************/
 /* colorization handling */
 /* NOTE: only one colorization mode can be selected at a time for a
@@ -3098,7 +3098,7 @@ static void parse_args(ExecCmdState *es)
             break;
         case CMD_ARG_INT:
             if (es->argval != NO_ARG) {
-                es->args[es->nb_args] = (void *)es->argval;
+                es->args[es->nb_args] = (void *)(intptr_t)es->argval;
                 es->argval = NO_ARG;
             } else {
                 es->args[es->nb_args] = (void *)NO_ARG;
@@ -3106,7 +3106,7 @@ static void parse_args(ExecCmdState *es)
             }
             break;
         case CMD_ARG_STRING:
-            es->args[es->nb_args] = (void *)NULL;
+            es->args[es->nb_args] = (void *)(intptr_t)NULL;
             no_arg = 1;
             break;
         }
@@ -3206,7 +3206,7 @@ static void arg_edit_cb(void *opaque, char *str)
             put_status(NULL, "Invalid Number");
             goto fail;
         }
-        es->args[index] = (void *)val;
+        es->args[index] = (void *)(intptr_t)val;
         break;
     case CMD_ARG_STRING:
         if (str[0] == '\0' && es->default_input[0] != '\0') {
@@ -3510,7 +3510,7 @@ static void qe_key_process(int key)
                     }
                 }
                 if (kd) {
-                    kd->cmd->val = (void *)key;
+                    kd->cmd->val = (void *)(intptr_t)key;
                     goto exec_cmd;
                 }
             }
@@ -3774,7 +3774,7 @@ void file_completion(StringArray *cs, const char *input)
     ffs = find_file_open(path, file);
     while (find_file_next(ffs, filename, sizeof(filename)) == 0) {
         struct stat sb;
-        p = basename(filename);
+        p = qe_basename(filename);
         memcpy(file, input, input_path_len);
         strcpy(file + input_path_len, p);
         /* stat the file to find out if it's a directory.
@@ -3892,7 +3892,7 @@ void do_completion(EditState *s)
  no_match:
     if (match_len > len) {
         /* add the possible chars */
-        eb_write(s->b, 0, outputs[0]->str, match_len);
+        eb_write(s->b, 0, (unsigned char *)outputs[0]->str, match_len);
         s->offset = match_len;
     } else {
         if (count > 1) {
@@ -4175,7 +4175,6 @@ void show_popup(EditBuffer *b)
     do_refresh(s);
 }
 
-#ifndef CONFIG_TINY
 /* insert a window to the left. Close all windows which are totally
    under it (XXX: should try to move them first */
 EditState *insert_window_left(EditBuffer *b, int width, int flags)
@@ -4214,7 +4213,6 @@ EditState *find_window_right(EditState *s)
     }
     return NULL;
 }
-#endif
 
 /* give a good guess to the user for the next buffer */
 static EditBuffer *predict_switch_to_buffer(EditState *s)
@@ -4347,7 +4345,7 @@ static ModeDef *probe_mode(EditState *s, int mode, uint8_t *buf, int len)
     best_probe_percent = 0;
     probe_data.buf = buf;
     probe_data.buf_size = len;
-    probe_data.filename = b->filename;
+    probe_data.filename = (unsigned char *)b->filename;
     probe_data.mode = mode;
 
     while (m != 0) {
@@ -4365,7 +4363,7 @@ static ModeDef *probe_mode(EditState *s, int mode, uint8_t *buf, int len)
 
 static void do_load1(EditState *s, const char *filename1, int kill_buffer)
 {
-    char buf[1025];
+    unsigned char buf[1025];
     char filename[1024];
     int mode, buf_size;
     ModeDef *selected_mode;

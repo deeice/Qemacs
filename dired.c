@@ -100,7 +100,7 @@ void build_dired_list(EditState *s, const char *path)
     while (!find_file_next(ffs, filename, sizeof(filename))) {
         if (lstat(filename, &st) < 0)
             continue;
-        p = basename(filename);
+        p = qe_basename(filename);
 
         /* exclude redundant '.' and '..' */
         if (!strcmp(p, ".") || !strcmp(p, ".."))

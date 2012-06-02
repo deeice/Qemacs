@@ -333,7 +333,7 @@ int draw_html(QEditScreen *scr,
     xml = xml_begin(s->style_sheet, flags, html_test_abort, NULL, filename, charset);
     
     for(;;) {
-        len = css_read(f, buf, IO_BUF_SIZE);
+        len = css_read(f, (unsigned char *)buf, IO_BUF_SIZE);
         if (len <= 0)
             break;
         xml_parse(xml, buf, len);

@@ -1272,7 +1272,7 @@ void set_filename(EditBuffer *b, const char *filename)
     const char *p;
 
     pstrcpy(b->filename, sizeof(b->filename), filename);
-    p = basename(filename);
+    p = qe_basename(filename);
     set_buffer_name(b, p);
 }
 
@@ -1285,7 +1285,7 @@ void eb_printf(EditBuffer *b, const char *fmt, ...)
     va_start(ap, fmt);
     len = vsnprintf(buf, sizeof(buf), fmt, ap);
     va_end(ap);
-    eb_insert(b, b->total_size, buf, len);
+    eb_insert(b, b->total_size, (unsigned char *)buf, len);
 }
 
 /* pad current line with spaces so that it reaches column n */
@@ -1312,7 +1312,7 @@ int eb_get_str(EditBuffer *b, char *buf, int buf_size)
     len = b->total_size;
     if (len > buf_size - 1)
         len = buf_size - 1;
-    eb_read(b, 0, buf, len);
+    eb_read(b, 0, (unsigned char *)buf, len);
     buf[len] = '\0';
     return len;
 }

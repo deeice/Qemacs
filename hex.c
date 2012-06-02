@@ -221,7 +221,7 @@ void hex_write_char(EditState *s, int key)
 {
     unsigned int cur_ch, ch;
     int hsize, shift, cur_len, len, h;
-    char buf[10];
+    unsigned char buf[10];
     
     if (s->hex_mode) {
         if (s->unihex_mode)

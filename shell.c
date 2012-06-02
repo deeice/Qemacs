@@ -16,6 +16,7 @@
  * License along with this library; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
+#define _GNU_SOURCE
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -78,8 +79,8 @@ static int shell_mode_init(EditState *s, ModeSavedData *saved_data)
 #define	PTYCHAR1 "pqrstuvwxyz"
 #define	PTYCHAR2 "0123456789abcdef"
 
-/* allocate one pty/tty pair */
-static int get_pty(char *tty_str)
+/* allocate one pty/tty pair (old way) */
+static int get_pty_old(char *tty_str, int buf_size)
 {
    int fd;
    char ptydev[] = "/dev/pty??";
@@ -93,7 +94,7 @@ static int get_pty(char *tty_str)
            ptydev [len-1] = ttydev [len-1] = *c2;
            if ((fd = open (ptydev, O_RDWR)) >= 0) {
                if (access (ttydev, R_OK|W_OK) == 0) {
-                   strcpy(tty_str, ttydev);
+                   pstrcpy(tty_str, buf_size, ttydev);
                    return fd;
                }
                close (fd);
@@ -103,14 +104,41 @@ static int get_pty(char *tty_str)
    return -1;
 }
 
+/* allocate one pty/tty pair (Unix 98 way) */
+static int get_pty(char *tty_buf, int tty_buf_size)
+{
+    int fd;
+    char *str;
+
+    fd = posix_openpt(O_RDWR | O_NOCTTY);
+    if (fd < 0) {
+        return get_pty_old(tty_buf, tty_buf_size);
+    }
+    if (grantpt(fd) < 0)
+        goto fail;
+    if (unlockpt(fd) < 0)
+        goto fail;
+    str = ptsname(fd);
+    if (!str)
+        goto fail;
+    pstrcpy(tty_buf, tty_buf_size, str);
+    return fd;
+ fail:
+    close(fd);
+    return -1;
+}
+
+
+
+
 static int run_process(const char *path, char **argv, 
                        int *fd_ptr, int *pid_ptr)
 {
     int pty_fd, pid, i, nb_fds;
-    char tty_name[32];
+    char tty_name[1024];
     struct winsize ws;
 
-    pty_fd = get_pty(tty_name);
+    pty_fd = get_pty(tty_name, sizeof(tty_name));
     fcntl(pty_fd, F_SETFL, O_NONBLOCK);
     if (pty_fd < 0)
         return -1;
@@ -158,12 +186,12 @@ static void tty_init(ShellState *s)
     s->color = s->def_color;
 }
 
-static void tty_write(ShellState *s, unsigned char *buf, int len)
+static void tty_write(ShellState *s, char *buf, int len)
 {
     int ret;
 
     if (len < 0)
-        len = strlen(buf);
+        len = strlen((char *)buf);
     while (len > 0) {
         ret = write(s->pty_fd, buf, len);
         if (ret == -1 && (errno == EAGAIN || errno == EINTR))
@@ -533,7 +561,7 @@ void shell_pid_cb(void *opaque, int status)
                      status, time_str);
         }
     }
-    eb_write(b, b->total_size, buf, strlen(buf));
+    eb_write(b, b->total_size, (unsigned char *)buf, strlen(buf));
     set_pid_handler(s->pid, NULL, NULL);
     s->pid = -1;
     /* no need to leave the pty opened */
@@ -684,7 +712,7 @@ void shell_move_bol(EditState *e)
 {
     if (e->interactive) {
         ShellState *s = e->b->priv_data;
-        unsigned char ch;
+        char ch;
         ch = 1;
         tty_write(s, &ch, 1);
     } else {
@@ -696,7 +724,7 @@ void shell_move_eol(EditState *e)
 {
     if (e->interactive) {
         ShellState *s = e->b->priv_data;
-        unsigned char ch;
+        char ch;
         ch = 5;
         tty_write(s, &ch, 1);
     } else {
@@ -706,11 +734,10 @@ void shell_move_eol(EditState *e)
 
 void shell_write_char(EditState *e, int c)
 {
-    unsigned char ch;
-
     if (e->interactive) {
         ShellState *s = e->b->priv_data;
-
+        char ch;
+    
         ch = c;
         tty_write(s, &ch, 1);
     } else {

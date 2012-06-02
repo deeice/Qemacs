@@ -124,7 +124,7 @@ static int latex_mode_probe(ModeProbeData *p)
     const char *r;
 
     /* currently, only use the file extension */
-    r = strrchr(p->filename, '.');
+    r = strrchr((char *)p->filename, '.');
     if (r) {
         r++;
         if (strcasecmp(r, "tex") == 0)
@@ -155,20 +155,20 @@ static void do_tex_insert_quote(EditState *s)
     p = s->offset - offset_bol;
 
     if(p >= 1 && buf[p-1] == '\"') {
-        eb_insert(s->b, s->offset, "\"", 1);
+        eb_insert(s->b, s->offset, (unsigned char *)"\"", 1);
         s->offset++;
     } else if(p >= 2 && (buf[p-1] == '`' || buf[p-1] == '\'') &&
               buf[p-1] == buf[p-2])
     {
         eb_delete(s->b, s->offset - 2, 2);
-        eb_insert(s->b, s->offset, "\"", 1);
+        eb_insert(s->b, s->offset, (unsigned char *)"\"", 1);
         s->offset++;
     } else {
         if(p == 0 || buf[p-1] == ' ') {
-            eb_insert(s->b, s->offset, "``", 2);
+            eb_insert(s->b, s->offset, (unsigned char *)"``", 2);
             s->offset += 2;
         } else {
-            eb_insert(s->b, s->offset, "''", 2);
+            eb_insert(s->b, s->offset, (unsigned char *)"''", 2);
             s->offset += 2;
         }
     }
@@ -277,16 +277,17 @@ static void do_latex(EditState *e, const char *cmd)
     else f = e->b->filename;
     p = strrchr(f, '.');
     if(p) {
-		int len = p - e->b->filename;
-		bname = (char *)malloc(len + 1);
+        int len = p - e->b->filename;
+        bname = (char *)malloc(len + 1);
         pstrncpy(bname, len + 1, e->b->filename, len);
-    } else
-		bname = strdup(e->b->filename);
+    } else {
+        bname = strdup(e->b->filename);
+    }
 
-	if(!cmd || cmd[0] == '\0')
-		strcpy(buf, "LaTeX");
-	else
-		strcpy(buf, cmd);
+    if(!cmd || cmd[0] == '\0')
+        strcpy(buf, "LaTeX");
+    else
+        strcpy(buf, cmd);
 
     /* check what command to run */
     for(i = 0; latex_funcs[i].name; i++) {
@@ -299,17 +300,18 @@ static void do_latex(EditState *e, const char *cmd)
                 char prompt[128];
                 snprintf(prompt, sizeof(prompt), "%s command: ",
                          latex_funcs[i].name);
-				minibuffer_edit(buf, prompt, &latex_funcs[i].history,
-								NULL /* completion */, 
-								latex_cmd_run, (void *)&latex_funcs[i]);
-            } else
-				latex_cmd_run((void *)&latex_funcs[i], buf);
+                minibuffer_edit(buf, prompt, &latex_funcs[i].history,
+                                NULL /* completion */, 
+                                latex_cmd_run, (void *)&latex_funcs[i]);
+            } else {
+                latex_cmd_run((void *)&latex_funcs[i], buf);
+            }
             break;
         }
     }
     if(latex_funcs[i].name == 0)
         put_status(e, "%s: No match", buf);
-	free(bname);
+    free(bname);
 }
 
 /* specific LaTeX commands */

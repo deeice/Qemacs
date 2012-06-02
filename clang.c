@@ -256,7 +256,7 @@ enum {
 static void insert_spaces(EditState *s, int *offset_ptr, int i)
 {
     int offset, size;
-    char buf1[64];
+    unsigned char buf1[64];
 
     offset = *offset_ptr;
 
@@ -515,7 +515,7 @@ static int c_mode_probe(ModeProbeData *p)
     const char *r;
 
     /* currently, only use the file extension */
-    r = strrchr(p->filename, '.');
+    r = strrchr((char *)p->filename, '.');
     if (r) {
         r++;
         if (!strcasecmp(r, "c") ||

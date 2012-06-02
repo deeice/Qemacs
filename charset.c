@@ -20,7 +20,7 @@
 
 QECharset *first_charset = NULL;
 
-extern QECharset charset_7bit;
+static QECharset charset_7bit;
 
 /* specific tables */
 static unsigned short table_idem[256];
@@ -142,7 +142,7 @@ int utf8_decode(const char **pp)
     const unsigned char *p;
     int i, l;
 
-    p = *pp;
+    p = (const unsigned char *)*pp;
     c = *p++;
     if (c < 128) {
         /* fast case for ASCII */
@@ -165,10 +165,10 @@ int utf8_decode(const char **pp)
                 c == 0xfffe || c == 0xffff)
             goto fail;
     }
-    *pp = p;
+    *pp = (const char *)p;
     return c;
  fail:
-    *pp = p;
+    *pp = (const char *)p;
     return INVALID_CHAR;
 }
 
@@ -241,7 +241,7 @@ static int decode_utf8_func(CharsetDecodeState *s, const unsigned char **pp)
 
 unsigned char *encode_utf8(QECharset *charset, unsigned char *q, int c)
 {
-    return utf8_encode(q, c);
+    return (unsigned char *)utf8_encode((char *)q, c);
 }
 
 static const char *aliases_utf_8[] = { "utf8", NULL };
@@ -335,9 +335,9 @@ QECharset *detect_charset (const unsigned char *buf, int size)
 
 /* the function uses '?' to indicate that no match could be found in
    current charset */
-int unicode_to_charset(char *buf, unsigned int c, QECharset *charset)
+int unicode_to_charset(unsigned char *buf, unsigned int c, QECharset *charset)
 {
-    char *q;
+    unsigned char *q;
 
     q = charset->encode_func(charset, buf, c);
     if (!q) {

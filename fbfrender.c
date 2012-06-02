@@ -480,7 +480,7 @@ int fbf_render_init(const char *font_path)
     glyph_cache_init();
     first_font = NULL;
     for(pp = fbf_fonts; *pp != NULL; pp += 2) {
-        fbf_load_font_memory(pp[0], (int)pp[1]);
+        fbf_load_font_memory(pp[0], (intptr_t)pp[1]);
     }
     if (!fallback_font)
         fallback_font = first_font;

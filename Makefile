@@ -9,22 +9,10 @@ include config.mak
 #CONFIG_FFMPEG=y
 #CONFIG_HTML=y
 #CONFIG_DLL=y
+#CONFIG_UNICODE_JOIN=y
+#CONFIG_ALL_KMAPS=y
 
-# currently fixes
-#
-# Define CONFIG_ALL_MODES to include all edit modes
-#
-CONFIG_ALL_MODES=y
-#
-# Define CONFIG_UNICODE_JOIN to include unicode bidi/script handling
-#
-CONFIG_UNICODE_JOIN=y
-# 
-# Define CONFIG_ALL_KMAPS it to include generic key map handling
-#
-CONFIG_ALL_KMAPS=y
-
-CFLAGS:=-Wall -g $(CFLAGS)
+CFLAGS:=-fno-strict-aliasing -Wall -Werror -g $(CFLAGS)
 ifdef TARGET_GPROF
 CFLAGS+= -p
 LDFLAGS+= -p
@@ -42,16 +30,6 @@ DEFINES=-DHAVE_QE_CONFIG_H
 ########################################################
 # do not modify after this
 
-ifdef CONFIG_TINY
-CONFIG_X11=
-CONFIG_ALL_MODES=
-CONFIG_UNICODE_JOIN=
-CONFIG_ALL_KMAPS=
-CONFIG_HTML=
-CONFIG_DOCBOOK=
-CONFIG_DLL=
-endif
-
 ifdef CONFIG_WIN32
 CONFIG_ALL_KMAPS=
 CONFIG_X11=
@@ -63,15 +41,6 @@ ifdef CONFIG_PNG_OUTPUT
 HTMLTOPPM_LIBS+= -lpng
 endif
 
-ifdef CONFIG_ALL_KMAPS
-DEFINES+= -DCONFIG_ALL_KMAPS
-endif
-ifdef CONFIG_UNICODE_JOIN
-DEFINES+= -DCONFIG_UNICODE_JOIN
-endif
-ifdef CONFIG_ALL_MODES
-DEFINES+= -DCONFIG_ALL_MODES
-endif
 ifdef CONFIG_DLL
 LIBS+=-ldl
 # export some qemacs symbols
@@ -87,16 +56,9 @@ ifndef CONFIG_WIN32
 OBJS+= unix.o tty.o 
 endif
 
-# more charsets if needed
-ifndef CONFIG_TINY
-OBJS+=charsetmore.o charset_table.o 
-endif
-
-ifdef CONFIG_ALL_MODES
 OBJS+= unihex.o clang.o latex-mode.o xml.o bufed.o
 ifndef CONFIG_WIN32
 OBJS+= shell.o dired.o 
-endif
 endif
 
 ifdef CONFIG_WIN32
@@ -131,7 +93,7 @@ endif
 endif
 
 ifdef CONFIG_UNICODE_JOIN
-OBJS+= arabic.o indic.o qfribidi.o unihex.o
+OBJS+= charsetmore.o charset_table.o arabic.o indic.o qfribidi.o unihex.o
 endif
 
 ifdef CONFIG_FFMPEG
@@ -241,13 +203,13 @@ fonts/helv24.fbf   fonts/helv8.fbf    fonts/times10.fbf  fonts/times12.fbf \
 fonts/times14.fbf  fonts/times18.fbf  fonts/times24.fbf  fonts/times8.fbf \
 fonts/unifont.fbf
 
-FILE=qemacs-$(VERSION)
+FILE=qemacs-$(shell cat VERSION)
 
 tar:
 	rm -rf /tmp/$(FILE)
 	mkdir -p /tmp/$(FILE)
-	cp -P $(FILES) /tmp/$(FILE)
-	( cd /tmp ; tar zcvf ~/$(FILE).tar.gz $(FILE) )
+	cp -r . /tmp/$(FILE)
+	( cd /tmp ; tar zcvf $(FILE).tar.gz $(FILE) )
 	rm -rf /tmp/$(FILE)
 
 #

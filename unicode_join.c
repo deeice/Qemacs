@@ -56,7 +56,7 @@ static unsigned short *read_array_be16(FILE *f, int n)
 void load_ligatures(void)
 {
     FILE *f;
-    unsigned char buf[1024];
+    char buf[1024];
     int long_count;
 
     if (find_resource_file(buf, sizeof(buf), "ligatures") < 0)
@@ -181,7 +181,7 @@ static int unicode_ligature(unsigned int *buf_out,
             pos_L_to_V[i] = q - buf_out;
             *q++ = l1;
             i++;
-        found:
+        found: ;
         }
     }
     return q - buf_out;
