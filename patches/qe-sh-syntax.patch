@@ -1,0 +1,32 @@
+--- qemacs-0.3.2/clang.c	2012-01-30 17:33:38.000000000 -0500
++++ qepatch/clang.c	2012-06-04 20:55:18.000000000 -0400
+@@ -18,8 +18,10 @@
+  */
+ #include "qe.h"
+ 
++/* NOTE: 'fi','done','esac,'elif','then' added for shell scripts */
+ static const char c_keywords[] = 
+ "|auto|break|case|const|continue|do|else|enum|extern|for|goto|"
++"fi|done|esac|elif|then|"
+ "if|register|return|static|struct|switch|typedef|union|volatile|while|";
+ 
+ /* NOTE: 'var' is added for javascript */
+@@ -520,6 +522,7 @@
+         r++;
+         if (!strcasecmp(r, "c") ||
+             !strcasecmp(r, "h") ||
++            !strcasecmp(r, "sh") ||
+             !strcasecmp(r, "cpp"))
+             return 100;
+     }
+--- qemacs-0.3.2/qestyles.h	2012-01-30 17:33:38.000000000 -0500
++++ qepatch/qestyles.h	2012-06-04 20:55:27.000000000 -0400
+@@ -30,7 +30,7 @@
+               QERGB(0xf8, 0x44, 0x00), COLOR_TRANSPARENT,
+               0, 0)
+     STYLE_DEF(QE_STYLE_PREPROCESS, "preprocess",
+-              QERGB(0x00, 0xff, 0xff), COLOR_TRANSPARENT,
++              QERGB(0xff, 0x00, 0x88), COLOR_TRANSPARENT,
+               0, 0)
+     STYLE_DEF(QE_STYLE_STRING, "string",
+               QERGB(0xf8, 0xa0, 0x78), COLOR_TRANSPARENT,

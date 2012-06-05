@@ -1,0 +1,79 @@
+--- old/qe.c	2012-01-30 17:33:38.000000000 -0500
++++ qemacs-0.3.2/qe.c	2012-06-01 11:10:29.000000000 -0400
+@@ -1275,6 +1275,8 @@
+     QEmacsState *qs = s->qe_state;
+     EditBuffer *b;
+ 
++    static int p3 = -1;
++
+     if (s->b->flags & BF_READONLY)
+         return;
+ 
+@@ -1300,11 +1302,18 @@
+         p2 = tmp;
+     }
+     len = p2 - p1;
+-    b = new_yank_buffer();
+-    eb_insert_buffer(b, 0, s->b, p1, len);
++    if ((p3 == s->offset) && (qs->last_cmd_func == do_kill_region)) {
++        b = qs->yank_buffers[qs->yank_current];
++        eb_insert_buffer(b, b->total_size, s->b, p1, len);
++    } else {
++        b = new_yank_buffer();
++        eb_insert_buffer(b, 0, s->b, p1, len);
++    }
++
+     if (kill) {
+         eb_delete(s->b, p1, len);
+         s->offset = p1;
++        p3 = p1;
+     }
+     selection_activate(qs->screen);
+ }
+--- old/shell.c	2012-01-30 17:33:38.000000000 -0500
++++ qemacs-0.3.2/shell.c	2012-06-01 11:10:43.000000000 -0400
+@@ -107,6 +107,9 @@
+ /* allocate one pty/tty pair (Unix 98 way) */
+ static int get_pty(char *tty_buf, int tty_buf_size)
+ {
++#if 1 /* ZIPIT_Z2 */
++    return get_pty_old(tty_buf, tty_buf_size);
++#else
+     int fd;
+     char *str;
+ 
+@@ -126,6 +129,7 @@
+  fail:
+     close(fd);
+     return -1;
++#endif
+ }
+ 
+ 
+--- old/qe.h	2012-01-30 17:33:38.000000000 -0500
++++ qemacs-0.3.2/qe.h	2012-06-01 13:29:49.000000000 -0400
+@@ -346,7 +346,11 @@
+ 
+ /* should probably go somewhere else, or in the config file */
+ /* how many text lines to scroll when mouse wheel is used */
++#if 1 /* ZIPIT_Z2 */
++#define WHEEL_SCROLL_STEP 1
++#else
+ #define WHEEL_SCROLL_STEP 4
++#endif
+ 
+ typedef struct QEButtonEvent {
+     enum QEEventType type;
+--- old/qeconfig.h	2012-01-30 17:33:38.000000000 -0500
++++ qemacs-0.3.2/qeconfig.h	2012-06-01 13:29:21.000000000 -0400
+@@ -12,6 +12,10 @@
+     CMD1( KEY_META('f'), KEY_CTRL_RIGHT, "forward-word", do_word_right, 1 )
+     CMD1( KEY_META('v'), KEY_PAGEUP, "scroll-down", do_scroll_up_down, -1 )
+     CMD1( KEY_CTRL('v'), KEY_PAGEDOWN, "scroll-up", do_scroll_up_down, 1 )
++#if 1 /* ZIPIT_Z2 */
++    CMD1( KEY_META('z'), KEY_NONE, "scroll-down", wheel_scroll_up_down, -1 )
++    CMD1( KEY_CTRL('z'), KEY_NONE, "scroll-up", wheel_scroll_up_down, 1 )
++#endif
+     CMD0( KEY_HOME, KEY_CTRL('a'), "beginning-of-line", do_bol)
+     CMD0( KEY_END, KEY_CTRL('e'), "end-of-line", do_eol)
+     CMD0( KEY_ESC1(2), KEY_NONE, "overwrite-mode", do_insert)
