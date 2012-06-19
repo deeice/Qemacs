@@ -30,7 +30,7 @@
               QERGB(0xf8, 0x44, 0x00), COLOR_TRANSPARENT,
               0, 0)
     STYLE_DEF(QE_STYLE_PREPROCESS, "preprocess",
-              QERGB(0x00, 0xff, 0xff), COLOR_TRANSPARENT,
+              QERGB(0xff, 0x00, 0x88), COLOR_TRANSPARENT,
               0, 0)
     STYLE_DEF(QE_STYLE_STRING, "string",
               QERGB(0xf8, 0xa0, 0x78), COLOR_TRANSPARENT,

@@ -18,9 +18,16 @@
  */
 #include "qe.h"
 
+#if 1 /* ZIPIT_Z2 Cheesy hack to use c-mode color for sh script files. */
+/* NOTE: 'done','elif,'esac','fi','in','then' added for shell scripts */
+static const char c_keywords[] = 
+"|auto|break|case|const|continue|do|done|elif|else|enum|esac|extern|fi|for|goto|"
+"if|in|register|return|static|struct|switch|then|typedef|union|volatile|while|";
+#else
 static const char c_keywords[] = 
 "|auto|break|case|const|continue|do|else|enum|extern|for|goto|"
 "if|register|return|static|struct|switch|typedef|union|volatile|while|";
+#endif
 
 /* NOTE: 'var' is added for javascript */
 static const char c_types[] = 
@@ -565,3 +572,44 @@ int c_init(void)
 }
 
 qe_module_init(c_init);
+
+
+#if 1 /* ZIPIT_Z2 Cheesy hack to use c-mode color for sh script files. */
+static int sh_mode_probe(ModeProbeData *p)
+{
+    const char *r;
+
+    /* currently, only use the file extension */
+    r = strrchr((char *)p->filename, '.');
+    if (r) {
+        r++;
+        if (!strcasecmp(r, "sh"))
+            return 100;
+    }
+    if (!strncmp((char *)p->buf, "#!/bin/sh", 9))
+        return 100;
+    if (!strncmp((char *)p->buf, "#!/bin/ash", 10))
+        return 100;
+    if (!strncmp((char *)p->buf, "#!/bin/bash", 11))
+        return 100;
+    
+    return 0;
+}
+
+static ModeDef sh_mode;
+
+int sh_init(void)
+{
+    /* sh mode is almost like the text mode, so we copy and patch it */
+    memcpy(&sh_mode, &text_mode, sizeof(ModeDef));
+    sh_mode.name = "sh";
+    sh_mode.mode_probe = sh_mode_probe;
+    sh_mode.mode_init = c_mode_init; /* Use c-mode color for sh script files */
+
+    qe_register_mode(&sh_mode);
+
+    return 0;
+}
+
+qe_module_init(sh_init);
+#endif
