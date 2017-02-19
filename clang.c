@@ -290,7 +290,7 @@ static void insert_spaces(EditState *s, int *offset_ptr, int i)
     *offset_ptr = offset;
 }
 
-static void do_c_indent(EditState *s)
+static int do_c_indent(EditState *s)
 {
     int offset, offset1, offset2, offsetl, c, pos, size, line_num, col_num;
     int i, eoi_found, len, pos1, lpos, style, line_num1, state;
@@ -346,7 +346,7 @@ static void do_c_indent(EditState *s)
                 switch(c) {
                 case '}':
                     if (stack_ptr >= MAX_STACK_SIZE)
-                        return;
+                        return 0;
                     stack[stack_ptr++] = c;
                     goto check_instr;
                 case '{':
@@ -367,7 +367,7 @@ static void do_c_indent(EditState *s)
                 case ')':
                 case ']':
                     if (stack_ptr >= MAX_STACK_SIZE)
-                        return;
+                        return 0;
                     stack[stack_ptr++] = c;
                     break;
                 case '(':
@@ -489,6 +489,8 @@ static void do_c_indent(EditState *s)
     /* insert needed spaces */
     insert_spaces(s, &offset, pos);
     s->offset = offset;
+
+    return pos-size; /* Return the delta size of the line */
 }
     
 void do_c_indent_region(EditState *s)
@@ -513,8 +515,17 @@ void do_c_indent_region(EditState *s)
 
 void do_c_electric(EditState *s, int key)
 {
+    int i, offset;
     do_char(s, key);
-    do_c_indent(s);
+    offset = s->offset;
+    i = do_c_indent(s);
+    /* If this were REAL electric mode with parenthesis matching, */
+    /* we'd want to refresh the screen briefly to show the match. */
+    /* But its not REAL electric mode.  It just does the indent.  */
+    /* edit_display(&qe_state); */
+    /* dpy_flush(qe_state.screen); */
+    /* usleep(200 * 1000); */
+    s->offset = offset+i; /* Move cursor back to original position. */
 }
 
 static int c_mode_probe(ModeProbeData *p)
