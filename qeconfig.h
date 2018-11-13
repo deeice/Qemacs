@@ -37,6 +37,7 @@ CmdDef basic_commands[] = {
     CMD0( KEY_CTRL('i'), KEY_NONE, "tabulate", do_tab)
     CMD0( KEY_CTRL('q'), KEY_NONE, "quoted-insert", do_quote)
     CMD1( KEY_CTRLX(KEY_CTRL('s')), KEY_NONE, "save-buffer", do_save, 0 )
+    CMD1( KEY_CTRLX('s'), KEY_NONE, "save-buffer", do_save, 0 )
     CMD1( KEY_CTRLX(KEY_CTRL('w')), KEY_NONE, "write-file", do_save, 1 )
     CMD0( KEY_CTRLX(KEY_CTRL('c')), KEY_NONE, "suspend-emacs", do_quit )
     CMD( KEY_CTRLX(KEY_CTRL('f')), KEY_NONE, "find-file\0s{Find file: }[file]|file|", do_load)

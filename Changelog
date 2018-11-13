@@ -1,7 +1,12 @@
+version 0.3.3:
+
+- fixed HTML mode in 64 bit mode
+- added C-x s save-buffer mapping
+
 version 0.3.2:
 
 - make the code compile again with recent gcc
-	
+
 version 0.3.1:
 
 - SPACE in minibuffer does completion only if a completion method is

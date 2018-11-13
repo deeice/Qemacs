@@ -696,7 +696,8 @@ static int css_eval(CSSContext *s,
                     CSSState *state_parent)
 {
     const CSSPropertyDef *def;
-    int *ptr_parent, *ptr, type, val, i;
+    void *ptr_parent, *ptr;
+    int type, val, i;
     CSSProperty *p;
     int pelement_found;
     
@@ -706,24 +707,30 @@ static int css_eval(CSSContext *s,
         type = def->type;
         /* the TYPE_FOUR are not real css properties */
         if (!(type & CSS_TYPE_FOUR)) {
-            ptr = (int *)((char *)state + def->struct_offset);
+            ptr = (char *)state + def->struct_offset;
             if (def->type & CSS_TYPE_INHERITED) {
                 /* inherit value */
-                ptr_parent = (int *)((char *)state_parent + def->struct_offset);
-                val = *ptr_parent;
+                /* XXX: only int is handled */
+                ptr_parent = (char *)state_parent + def->struct_offset;
+                val = *(int *)ptr_parent;
+                *(int *)ptr = val;
             } else {
-                /* default values: color assumed to transparent, and
-                   if auto is a possible value, then it is
-                   set. Otherwise zero is the value */
-                if (type & CSS_TYPE_COLOR) {
-                    val = COLOR_TRANSPARENT;
-                } else if (type & CSS_TYPE_AUTO) {
-                    val = CSS_AUTO;
+                if (def->storage == CSS_STORAGE_PTR) {
+                    *(void **)ptr = NULL;
                 } else {
-                    val = 0;
+                    /* default values: color assumed to transparent, and
+                       if auto is a possible value, then it is
+                       set. Otherwise zero is the value */
+                    if (type & CSS_TYPE_COLOR) {
+                        val = COLOR_TRANSPARENT;
+                    } else if (type & CSS_TYPE_AUTO) {
+                        val = CSS_AUTO;
+                    } else {
+                        val = 0;
+                    }
+                    *(int *)ptr = val;
                 }
             }
-            *ptr = val;
         }
         def++;
     }
