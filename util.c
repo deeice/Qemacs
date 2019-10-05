@@ -22,13 +22,18 @@
 #ifdef WIN32
 #include <sys/timeb.h>
 
-/* XXX: not suffisant, but OK for basic operations */
+/* XXX: not sufficient, but OK for find_file_next() which adds * suffix. */
 int fnmatch(const char *pattern, const char *string, int flags)
 {
+    char *p = strchr(pattern, '*');
+    
     if (pattern[0] == '*')
         return 0;
+    else if (p)
+        return strncmp(pattern, string, p-pattern);
     else
         return strcmp(pattern, string) != 0;
+    }
 }
 
 #else
@@ -79,6 +84,17 @@ int find_file_next(FindFileState *s, char *filename, int filename_size_max)
             if (*p == '\0')
                 return -1;
             q = s->dirpath;
+#ifdef WIN32
+            /* Need ':' for Drive letters, ';' separates PATH strings. */
+            while (*p != ';' && *p != '\0') {
+                if ((q - s->dirpath) < sizeof(s->dirpath) - 1)
+                    *q++ = *p;
+                p++;
+            }
+            *q = '\0';
+            if (*p == ';')
+                p++;
+#else
             while (*p != ':' && *p != '\0') {
                 if ((q - s->dirpath) < sizeof(s->dirpath) - 1)
                     *q++ = *p;
@@ -87,6 +103,7 @@ int find_file_next(FindFileState *s, char *filename, int filename_size_max)
             *q = '\0';
             if (*p == ':')
                 p++;
+#endif
             s->bufptr = p;
             s->dir = opendir(s->dirpath);
             if (!s->dir)
@@ -195,9 +212,9 @@ void canonize_path(char *buf, int buf_size, const char *path)
     if (p) {
         if ((p - path) == 1) {
             /* windows drive : we canonize only the following path */
-            buf[0] = p[0];
-            buf[1] = p[1];
-            canonize_path1(buf + 2, buf_size - 2, p);
+            buf[0] = path[0]; /* Copy the Drive letter */
+            buf[1] = path[1]; /* and the Colon */
+            canonize_path1(buf + 2, buf_size - 2, p+1); /* Fix part after D: */
         } else {
             /* URL: it is already canonized */
             pstrcpy(buf, buf_size, path);

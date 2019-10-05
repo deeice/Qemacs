@@ -1037,12 +1037,6 @@ void command_completion(StringArray *cs, const char *input);
 void file_completion(StringArray *cs, const char *input);
 void buffer_completion(StringArray *cs, const char *input);
 
-#ifdef WIN32
-static inline int is_user_input_pending(void)
-{
-    return 0;
-}
-#else
 extern int __fast_test_event_poll_flag;
 int __is_user_input_pending(void);
 
@@ -1055,7 +1049,6 @@ static inline int is_user_input_pending(void)
         return 0;
     }
 }
-#endif
 
 /* popup / low level window handling */
 void show_popup(EditBuffer *b);

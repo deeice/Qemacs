@@ -251,6 +251,7 @@ static void latex_cmd_run(void *opaque, char *cmd)
 			/* XXX: try to split window if necessary */
 			switch_to_buffer(func->es, b);
     } else {
+#ifndef WIN32      
         int pid = fork();
         if (pid == 0) {
             /* child process */
@@ -258,6 +259,7 @@ static void latex_cmd_run(void *opaque, char *cmd)
             execv("/bin/sh", (char *const*)argv);
             exit(1);
         }
+#endif
     }
 	chdir(cwd);
 }

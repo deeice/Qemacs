@@ -86,6 +86,8 @@ int PASCAL WinMain(HINSTANCE hInstance, HINSTANCE hPrevInst,
        argv[argc++] = p;
        while (*p != '\0' && !css_is_space(*p))
            p++;
+       if (*p == '\0')
+           break;
        *p = '\0';
        p++;
    }
@@ -194,7 +196,14 @@ static void win_flush(QEditScreen *s)
 
 static int win_is_user_input_pending(QEditScreen *s)
 {
-    /* XXX: do it */
+    /* The tty.c code does a zero timeout select on the tty. */
+    /* So this should do a Windows PeekMessage. */
+    MSG msg;
+
+    /* Consider using WM_KEYFIRST, WM_KEYLAST instead of 0,0 for keys only. */
+    if (PeekMessage(&msg, NULL, 0, 0, PM_NOREMOVE))
+        return 1;
+   
     return 0;
 }
 
@@ -228,6 +237,32 @@ LRESULT CALLBACK qe_wnd_proc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
     //    printf("msg=%d\n", msg);
     switch (msg) {
+    case WM_CLOSE:
+        /* if (MessageBox(hWnd, L"Really Quit?", L"qemacs", MB_OKCANCEL) == IDOK) */
+        {
+        DestroyWindow(hWnd);
+        url_exit();
+        return 0;
+        }
+        break;
+#if 0
+    case WM_COMMAND:
+        switch (LOWORD(wParam))
+        {
+        case ID_HELP_ABOUT:
+          {
+            return 0;
+            DialogBox(hInstance, MAKEINTRESOURCE(IDD_ABOUTDIALOG), hWnd, &AboutDialogProc);
+          }
+        case ID_FILE_EXIT:
+          {
+            DestroyWindow(hWnd);
+            url_exit();
+            return 0;
+          }
+        }
+        break;
+#endif
     case WM_CREATE:
         /* NOTE: must store them here to avoid problems in main */
         win_ctx.w = hWnd;
@@ -358,6 +393,8 @@ LRESULT CALLBACK qe_wnd_proc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
         {
             PAINTSTRUCT ps;
             HDC saved_hdc;
+            QEEvent ev;
+
             BeginPaint(win_ctx.w, &ps);
             saved_hdc = win_ctx.hdc;
             win_ctx.hdc = ps.hdc;
@@ -366,6 +403,9 @@ LRESULT CALLBACK qe_wnd_proc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
             
             EndPaint(win_ctx.w, &ps);
             win_ctx.hdc = saved_hdc;
+
+	    ev.expose_event.type = QE_EXPOSE_EVENT;
+	    push_event(&ev);
         }
 	break;
 
@@ -379,6 +419,7 @@ LRESULT CALLBACK qe_wnd_proc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
     return 0;
 }
 
+#if 0
 static int get_unicode_key(QEditScreen *s, QEPollData *pd, QEEvent *ev)
 {
     MSG msg;
@@ -404,6 +445,7 @@ static int get_unicode_key(QEditScreen *s, QEPollData *pd, QEEvent *ev)
     }
     return 1;
 }
+#endif
 
 static void win_fill_rectangle(QEditScreen *s,
                                int x1, int y1, int w, int h, QEColor color)
@@ -411,6 +453,7 @@ static void win_fill_rectangle(QEditScreen *s,
    RECT rc;
    HBRUSH hbr;
    COLORREF col;
+   QEColor clr = color;
 
    /* XXX: suppress XOR mode */
    if (color == QECOLOR_XOR)
@@ -419,6 +462,9 @@ static void win_fill_rectangle(QEditScreen *s,
    SetRect(&rc, x1, y1, x1 + w, y1 + h);
    col = RGB((color >> 16) & 0xff, (color >> 8) & 0xff, color & 0xff);
    hbr = CreateSolidBrush(col);
+   if (clr == QECOLOR_XOR)
+     FrameRect(win_ctx.hdc, &rc, hbr); /* Cheap cursor fix (unfilled rect) */
+   else
    FillRect(win_ctx.hdc, &rc, hbr);
    DeleteObject(hbr);
 }
@@ -463,13 +509,16 @@ static void win_draw_text(QEditScreen *s, QEFont *font,
     int i;
     WORD buf[len];
     COLORREF col;
+    RECT rc;
 
     for(i=0;i<len;i++)
         buf[i] = str[i];
     col = RGB((color >> 16) & 0xff, (color >> 8) & 0xff, color & 0xff);
     SetTextColor(win_ctx.hdc, col);
     SetBkMode(win_ctx.hdc, TRANSPARENT);
-    TextOutW(win_ctx.hdc, x1, y - font->ascent, buf, len);
+    /* Clip text to window or it bleeds into mode line and around boxes. */
+    SetRect(&rc, s->clip_x1, s->clip_y1, s->clip_x2,s->clip_y2);
+    ExtTextOutW(win_ctx.hdc, x1, y - font->ascent, ETO_CLIPPED, &rc, buf, len, 0);
 }
 
 static void win_set_clip(QEditScreen *s,
@@ -477,6 +526,79 @@ static void win_set_clip(QEditScreen *s,
 {
     /* nothing to do */
 }
+
+/* Stubs for code from unix.c */
+static int url_exit_request;
+
+void register_bottom_half(void (*cb)(void *opaque), void *opaque)
+{
+}
+
+void url_main_loop(void (*init)(void *opaque), void *opaque)
+{
+    HACCEL hAccelerators;
+    MSG msg;
+    QEEventQ *e;
+    QEEvent ev1, *ev = &ev1;
+
+    init(opaque);
+
+    /* Load Accelerators */
+    /* hAccelerators = LoadAccelerators(_hInstance, MAKEINTRESOURCE(IDR_ACCELERATOR1)); */
+
+    /* Main message loop */
+    for(;;) {
+        /* Handle any events queued before we dispatch more stuff. */
+        while (first_event != NULL) {
+            e = first_event;
+            *ev = e->ev;
+            first_event = e->next;
+            if (!first_event)
+                last_event = NULL;
+            free(e);
+	    
+	    /* Try to compress expose events on pop from queue */
+	    e = NULL;
+	    if (ev->event.type == QE_EXPOSE_EVENT) {
+	        for (e = first_event; e != NULL; e - e->next)
+	            if (ev->event.type == QE_EXPOSE_EVENT) 
+		        break;
+	    }
+	    if (e == NULL) /* Process this ev if it's not an EXPOSE dup. */
+	        qe_handle_event(ev);
+        }
+
+        if (url_exit_request)
+            break;
+
+        /* check if message queued */
+        if (GetMessage(&msg, NULL, 0, 0)) {
+            TranslateMessage(&msg);
+            DispatchMessage(&msg);
+        }
+
+    }
+}
+
+/* exit from url loop */
+void url_exit(void)
+{
+    url_exit_request = 1;
+}
+
+/* Stubs for code from dired.c */
+void do_dired(EditState *s)
+{
+    /* Dired code needs a bit of work for Windows */
+}
+
+/* Stubs for code from shell.c */
+EditBuffer *new_shell_buffer(const char *name, const char *path, char **argv, int is_shell)
+{
+    return NULL;
+}
+
+/* End of Stubs. */
 
 static QEDisplay win32_dpy = {
     "win32",

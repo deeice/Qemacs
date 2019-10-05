@@ -5484,8 +5484,23 @@ void do_help_for_help(EditState *s)
 
 #ifdef WIN32
 
+int __fast_test_event_poll_flag = 0;
+
 void qe_event_init(void)
 {
+    /* Always set this to 1 until we have a WIN32 version of poll_action() */
+    __fast_test_event_poll_flag = 1;
+}
+
+/* see also qe_fast_test_event() */
+int __is_user_input_pending(void)
+{
+    QEditScreen *s = &global_screen;
+
+    /* Always set this to 1 until we have a WIN32 version of poll_action() */
+    __fast_test_event_poll_flag = 1;
+    
+    return s->dpy.dpy_is_user_input_pending(s);
 }
 
 #else
@@ -6256,6 +6271,7 @@ void qe_init(void *opaque)
     char *home_path;
 
     /* compute resources path */
+#ifndef WIN32
     strcpy(qe_state.res_path, 
            CONFIG_QE_PREFIX "/share/qe:" CONFIG_QE_PREFIX "/lib/qe:"
            "/usr/share/qe:/usr/lib/qe");
@@ -6265,6 +6281,14 @@ void qe_init(void *opaque)
         pstrcat(qe_state.res_path, sizeof(qe_state.res_path), home_path);
         pstrcat(qe_state.res_path, sizeof(qe_state.res_path), "/.qe");
     }
+#else
+    strcpy(qe_state.res_path, "");
+    home_path = getenv("HOME");
+    if (home_path) {
+        pstrcat(qe_state.res_path, sizeof(qe_state.res_path), home_path);
+        pstrcat(qe_state.res_path, sizeof(qe_state.res_path), "/.qe");
+    }
+#endif
     qe_state.macro_key_index = -1; /* no macro executing */
     qe_state.ungot_key = -1; /* no unget key */
     
