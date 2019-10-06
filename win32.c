@@ -559,9 +559,9 @@ void url_main_loop(void (*init)(void *opaque), void *opaque)
 	    
 	    /* Try to compress expose events on pop from queue */
 	    e = NULL;
-	    if (ev->event.type == QE_EXPOSE_EVENT) {
+	    if (ev->type == QE_EXPOSE_EVENT) {
 	        for (e = first_event; e != NULL; e - e->next)
-	            if (ev->event.type == QE_EXPOSE_EVENT) 
+	            if (e->ev.type == QE_EXPOSE_EVENT) 
 		        break;
 	    }
 	    if (e == NULL) /* Process this ev if it's not an EXPOSE dup. */

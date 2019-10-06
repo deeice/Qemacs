@@ -6325,6 +6325,22 @@ void qe_init(void *opaque)
     /* init all external modules in link order */
     init_all_modules();
 
+#ifdef CONFIG_WIN32_OLD
+    // I had to do this with old Mingw gcc 3.4.5 on XP or nothing inits.
+    // (Also had to remove static from some of these fns.)
+    // None of this was needed on Win7 with gcc 4.8 or so.
+    // So, need a better fix on XP.  Maybe try newer compiler...
+    hex_init();
+    list_init();
+    unihex_init();
+    c_init();
+    sh_init();
+    latex_init();
+    xml_init();
+    bufed_init();
+    win32_init();
+#endif
+
 #ifdef CONFIG_DLL
     /* load all dynamic modules */
     load_all_modules();

@@ -33,7 +33,6 @@ int fnmatch(const char *pattern, const char *string, int flags)
         return strncmp(pattern, string, p-pattern);
     else
         return strcmp(pattern, string) != 0;
-    }
 }
 
 #else
