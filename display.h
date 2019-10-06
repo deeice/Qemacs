@@ -7,7 +7,11 @@
 typedef unsigned int QEColor;
 #define QEARGB(a,r,g,b) (((a) << 24) | ((r) << 16) | ((g) << 8) | (b))
 #define QERGB(r,g,b) QEARGB(0xff, r, g, b)
+#ifdef CONFIG_MUTED_COLOR
+#define COLOR_TRANSPARENT QERGB(0x2e, 0x34, 0x36)
+#else
 #define COLOR_TRANSPARENT 0
+#endif
 #define QECOLOR_XOR       1
 
 /* XXX: use different name prefix to avoid conflict */

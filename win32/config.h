@@ -3,3 +3,4 @@
 #define QE_VERSION "0.3.3"
 #define CONFIG_NETWORK 1
 #define CONFIG_WIN32 1
+#define CONFIG_MUTED_COLOR 1
