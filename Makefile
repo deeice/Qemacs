@@ -66,7 +66,7 @@ endif
 
 ifdef CONFIG_WIN32
 OBJS+= win32.o
-LIBS+= -lgdi32
+LIBS+= -lgdi32 -mwindows
 endif
 
 # currently not used in qemacs
@@ -119,7 +119,7 @@ qe_g: $(OBJS) $(DEP_LIBS)
 	$(CC) $(LDFLAGS) -o $@ $^ $(LIBS)
 
 qe$(EXE): qe_g
-	cp $< $@
+	cp $<$(EXE) $@
 	$(STRIP) $@
 	@ls -l $@
 

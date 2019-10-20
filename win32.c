@@ -19,6 +19,15 @@
 #include "qe.h"
 
 #include <windows.h>
+#include <windowsx.h> 
+
+/* Probably need this if you don't have windowsx.h */
+#ifndef GET_X_LPARAM
+#define GET_X_LPARAM(lp)  ((int)(short)(LOWORD(lp)))
+#endif
+#ifndef GET_Y_LPARAM
+#define GET_Y_LPARAM(lp) ((int)(short)(HIWORD(lp)))
+#endif
 
 extern int main1(int argc, char **argv);
 LRESULT CALLBACK qe_wnd_proc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
@@ -157,8 +166,8 @@ static int win_init(QEditScreen *s, int w, int h)
     font_xsize = tm.tmAveCharWidth;
     font_ysize = tm.tmHeight;
 
-    xsize = 80 * font_xsize;
-    ysize = 25 * font_ysize;
+    xsize = w * font_xsize; /* xsize = 80 * font_xsize; */
+    ysize = h * font_ysize; /* ysize = 25 * font_ysize; */
 
     s->width = xsize;
     s->height = ysize;
@@ -170,7 +179,7 @@ static int win_init(QEditScreen *s, int w, int h)
     s->clip_y2 = s->height;
 
     win_ctx.w = CreateWindow("qemacs", "qemacs", WS_OVERLAPPEDWINDOW, 
-                             0, 0, xsize, ysize, NULL, NULL, _hInstance, NULL);
+      CW_USEDEFAULT, CW_USEDEFAULT, xsize, ysize, NULL, NULL, _hInstance, NULL);
 
     win_ctx.hdc = GetDC(win_ctx.w);
     SelectObject(win_ctx.hdc, win_ctx.font);
@@ -243,6 +252,71 @@ LRESULT CALLBACK qe_wnd_proc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
         DestroyWindow(hWnd);
         url_exit();
         return 0;
+        }
+        break;
+    case WM_LBUTTONDOWN:
+    case WM_LBUTTONUP:
+        {
+	QEEvent ev;
+        ev.button_event.button = QE_BUTTON_LEFT;
+        if (msg == WM_LBUTTONDOWN)
+            ev.button_event.type = QE_BUTTON_PRESS_EVENT;
+        else
+            ev.button_event.type = QE_BUTTON_RELEASE_EVENT;
+        ev.button_event.x = GET_X_LPARAM(lParam);
+        ev.button_event.y = GET_Y_LPARAM(lParam);
+        push_event(&ev); /* qe_handle_event(ev); */
+        }
+        break;
+    case WM_MBUTTONDOWN:
+    case WM_MBUTTONUP:
+        {
+	QEEvent ev;
+        ev.button_event.button = QE_BUTTON_MIDDLE;
+        if (msg == WM_MBUTTONDOWN)
+            ev.button_event.type = QE_BUTTON_PRESS_EVENT;
+        else
+            ev.button_event.type = QE_BUTTON_RELEASE_EVENT;
+        ev.button_event.x = GET_X_LPARAM(lParam);
+        ev.button_event.y = GET_Y_LPARAM(lParam);
+        push_event(&ev); /* qe_handle_event(ev); */
+        }
+        break;
+    case WM_RBUTTONDOWN:
+    case WM_RBUTTONUP:
+        {
+	QEEvent ev;
+        ev.button_event.button = QE_BUTTON_RIGHT;
+        if (msg == WM_RBUTTONDOWN)
+            ev.button_event.type = QE_BUTTON_PRESS_EVENT;
+        else
+            ev.button_event.type = QE_BUTTON_RELEASE_EVENT;
+        ev.button_event.x = GET_X_LPARAM(lParam);
+        ev.button_event.y = GET_Y_LPARAM(lParam);
+        push_event(&ev); /* qe_handle_event(ev); */
+        }
+        break;
+    case WM_MOUSEWHEEL:
+        {
+	QEEvent ev;
+        int zDelta = GET_WHEEL_DELTA_WPARAM(wParam);
+        if (zDelta < 0) 
+	    ev.button_event.button = QE_WHEEL_DOWN;
+        else /* if (zDelta > 0) */
+	    ev.button_event.button = QE_WHEEL_UP;
+        ev.button_event.type = QE_BUTTON_PRESS_EVENT;
+        ev.button_event.x = GET_X_LPARAM(lParam);
+        ev.button_event.y = GET_Y_LPARAM(lParam);
+        push_event(&ev); /* qe_handle_event(ev); */
+        }
+        break;
+    case WM_MOUSEMOVE: 
+        {
+	QEEvent ev;
+        ev.button_event.type = QE_MOTION_EVENT;
+        ev.button_event.x = GET_X_LPARAM(lParam);
+        ev.button_event.y = GET_Y_LPARAM(lParam);
+        push_event(&ev); /* qe_handle_event(ev); */
         }
         break;
 #if 0
@@ -600,6 +674,52 @@ EditBuffer *new_shell_buffer(const char *name, const char *path, char **argv, in
 
 /* End of Stubs. */
 
+static void win_clipboard_activate(QEditScreen *s)
+{
+    /* What about UTF-8?  Also, maybe add CR to LF? */
+    if (OpenClipboard(NULL)) {
+        HGLOBAL hglb;
+        QEmacsState *qs = &qe_state;
+        unsigned char *buf;
+        EditBuffer *b;
+
+        EmptyClipboard();
+        if (b = qs->yank_buffers[qs->yank_current]) {
+            hglb = GlobalAlloc(GMEM_DDESHARE, b->total_size +1);
+            buf = (unsigned char*)GlobalLock(hglb);
+            eb_read(b, 0, buf, b->total_size);
+            GlobalUnlock(hglb);
+            SetClipboardData(CF_TEXT, hglb);
+        }
+        CloseClipboard();
+    }
+}
+
+/* request Windows clipboard text and put it in a new yank buffer if needed */
+static void win_clipboard_request(QEditScreen *s)
+{
+    HGLOBAL hglb;
+    LPTSTR   lptstr;
+    EditBuffer *b;
+
+    /* What about UTF-8?  Also, strip CR from CRLF pairs? */
+    if (!IsClipboardFormatAvailable(CF_TEXT))
+        return;
+    if (!OpenClipboard(NULL))
+        return;
+    hglb = GetClipboardData(CF_TEXT);
+    if (hglb != NULL) {
+        lptstr = GlobalLock(hglb);
+        if (lptstr != NULL) {
+            /* copy GUI selection to a new yank buffer */
+            b = new_yank_buffer();
+            eb_write(b, 0, lptstr, strlen(lptstr));
+            GlobalUnlock(hglb);
+        }
+    }
+    CloseClipboard();
+}
+
 static QEDisplay win32_dpy = {
     "win32",
     win_probe,
@@ -614,8 +734,8 @@ static QEDisplay win32_dpy = {
     win_text_metrics,
     win_draw_text,
     win_set_clip,
-    NULL, /* no selection handling */
-    NULL, /* no selection handling */
+    win_clipboard_activate,
+    win_clipboard_request,
 };
 
 int win32_init(void)

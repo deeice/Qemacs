@@ -21,6 +21,9 @@
 #ifdef CONFIG_DLL
 #include <dlfcn.h>
 #endif
+#ifdef WIN32
+#include <windows.h>
+#endif
 
 /* each history list */
 typedef struct HistoryEntry {
@@ -5677,7 +5680,11 @@ void wheel_scroll_up_down(EditState *s, int dir)
     perform_scroll_up_down(s, dir * WHEEL_SCROLL_STEP * line_height);
 }
 
+#ifdef WIN32
+void qe_mouse_event(QEEvent *ev)
+#else
 void mouse_event(QEEvent *ev)
+#endif
 {
     QEmacsState *qs = &qe_state;
     EditState *e;
@@ -5844,7 +5851,11 @@ void qe_handle_event(QEEvent *ev)
     case QE_BUTTON_PRESS_EVENT:
     case QE_BUTTON_RELEASE_EVENT:
     case QE_MOTION_EVENT:
+#ifdef WIN32
+        qe_mouse_event(ev);
+#else
         mouse_event(ev);
+#endif
         break;
     case QE_SELECTION_CLEAR_EVENT:
         save_selection();
@@ -6145,7 +6156,7 @@ void qe_register_cmd_line_options(CmdOptionDef *table)
 }
 
 /******************************************************/
-
+#ifndef CONFIG_WIN32
 static void show_help(void)
 {
     CmdOptionDef *p;
@@ -6181,13 +6192,63 @@ static void show_help(void)
     exit(1);
 }
 
+#else
+/******************************************************/
+char msgboxmsg[4096];
+static void show_help(void)
+{
+    CmdOptionDef *p;
+    sprintf(msgboxmsg,"QEmacs version " QE_VERSION ", Copyright (c) 2000-2003 Fabrice Bellard\n");
+
+    /* generate usage */
+    strcat(msgboxmsg,"usage: qe");
+    p = first_cmd_options;
+    while (p != NULL) {
+        while (p->name != NULL) {
+            strcat(msgboxmsg, " [-");
+	    strcat(msgboxmsg, p->name);
+            if (p->flags & CMD_OPT_ARG){
+                strcat(msgboxmsg, " ");
+                strcat(msgboxmsg, p->argname);
+            }
+            strcat(msgboxmsg, "]");
+            p++;
+        }
+        p = p->u.next;
+    }
+    strcat(msgboxmsg, " [filename...]\n\n");
+
+    /* generate help */
+    p = first_cmd_options;
+    while (p != NULL) {
+        while (p->name != NULL) {
+            strcat(msgboxmsg, "-");
+	    strcat(msgboxmsg, p->name);
+            if (p->flags & CMD_OPT_ARG){
+                strcat(msgboxmsg, " ");
+                strcat(msgboxmsg, p->argname);
+            }
+            strcat(msgboxmsg, ": ");
+            strcat(msgboxmsg, p->help);
+            strcat(msgboxmsg, "\n");
+            p++;
+        }
+        p = p->u.next;
+    }
+    MessageBox( NULL, msgboxmsg, "QEmacs", MB_OK );
+    exit(1);
+}
+#endif
+
 static CmdOptionDef cmd_options[] = {
     { "h", NULL, 0, "show help", 
       {func_noarg: show_help}},
     { NULL },
 };
 
-#if defined(__GNUC__) || defined(__TINYC__)
+/* Use initcall for linux and win64, fallback list for win32 */
+#if (defined(__GNUC__) || defined(__TINYC__)) \
+  && !(defined(CONFIG_WIN32) && !defined(__WIN64__))
 static inline void init_all_modules(void)
 {
     int (*initcall)(void);
@@ -6298,11 +6359,19 @@ void qe_init(void *opaque)
         pstrcat(qe_state.res_path, sizeof(qe_state.res_path), "/.qe");
     }
 #else
+    /* Above seems like order is most general 1st to most personal last. */
+    /* Does it load ALL .qe/config files found in that order?  Or 1st found? */
+    /* If so, probably want to change this to match. */
+    /* Also, may want (roaming) APPDATA and/or LOCALAPPDATA (instead?) */
     strcpy(qe_state.res_path, "");
-    home_path = getenv("HOME");
+    home_path = getenv("USERPROFILE");
+    if (!home_path || !strlen(home_path) )
+      home_path = getenv("ALLUSERSPROFILE");
+    if (!home_path || !strlen(home_path) )
+      home_path = getenv("HOME");
     if (home_path) {
         pstrcat(qe_state.res_path, sizeof(qe_state.res_path), home_path);
-        pstrcat(qe_state.res_path, sizeof(qe_state.res_path), "/.qe");
+        pstrcat(qe_state.res_path, sizeof(qe_state.res_path), "\\.qe");
     }
 #endif
     qe_state.macro_key_index = -1; /* no macro executing */
@@ -6426,13 +6495,24 @@ void qe_init(void *opaque)
     /* select the suitable display manager */
     dpy = probe_display();
     if (!dpy) {
+#ifdef CONFIG_WIN32
+	sprintf(msgboxmsg,"No suitable display found, exiting\n");
+        MessageBox( NULL, msgboxmsg, "QEmacs", MB_OK );
+#else
         fprintf(stderr, "No suitable display found, exiting\n");
+#endif
         exit(1);
     }
 
     if (dpy->dpy_init(&global_screen, screen_width, screen_height) < 0) {
+#ifdef CONFIG_WIN32
+        sprintf(msgboxmsg, "Could not initialize display '%s', exiting\n", 
+                dpy->name);
+        MessageBox( NULL, msgboxmsg, "QEmacs", MB_OK );
+#else
         fprintf(stderr, "Could not initialize display '%s', exiting\n", 
                 dpy->name);
+#endif
         exit(1);
     }
 
