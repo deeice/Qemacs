@@ -52,67 +52,11 @@ typedef struct QEEventQ {
 QEEventQ *first_event, *last_event;
 WinWindow win_ctx;
 
-#define PROG_NAME "qemacs"
-
-/* the main is there. We simulate a unix command line by parsing the
-   windows command line */
+/******************************************************************************/
 int PASCAL WinMain(HINSTANCE hInstance, HINSTANCE hPrevInst, 
                    LPSTR lpszCmdLine, int nCmdShow)
 {
-   char **argv;
-   int argc, count;
-   char *command_line, *p;
-
-   command_line = malloc(strlen(lpszCmdLine) + sizeof(PROG_NAME) + 1);
-   if (!command_line)
-       return 0;
-   strcpy(command_line, PROG_NAME " ");
-   strcat(command_line, lpszCmdLine);
-   _hPrev = hPrevInst;
-   _hInstance = hInstance;
-
-   p = command_line;
-   count = 0;
-   for(;;) {
-       skip_spaces((const char **)&p);
-       if (*p == '\0')
-           break;
-       while (*p != '\0' && !css_is_space(*p))
-           p++;
-      count++;
-   }
-
-   argv = (char **)malloc( (count + 1) * sizeof(char *) );
-   if (!argv)
-       return 0;
-   
-   argc = 0;
-   p = command_line;
-   for(;;) {
-       skip_spaces((const char **)&p);
-       if (*p == '\0')
-           break;
-       argv[argc++] = p;
-       while (*p != '\0' && !css_is_space(*p))
-           p++;
-       if (*p == '\0')
-           break;
-       *p = '\0';
-       p++;
-   }
-
-   argv[argc] = NULL;
-
-#if 0
-   {
-       int i;
-       for(i=0;i<argc;i++) {
-           printf("%d: '%s'\n", i, argv[i]);
-       }
-   }
-#endif
-
-   return main1(argc, argv);
+   return main1(__argc, __argv);
 }
 
 static int win_probe(void)
@@ -136,6 +80,17 @@ static void init_application(void)
     wc.lpszClassName = "qemacs";
     
     RegisterClass(&wc);
+}
+
+void ClientResize(HWND hWnd, int nWidth, int nHeight)
+{
+  RECT rcClient, rcWind;
+  POINT ptDiff;
+  GetClientRect(hWnd, &rcClient);
+  GetWindowRect(hWnd, &rcWind);
+  ptDiff.x = (rcWind.right - rcWind.left) - rcClient.right;
+  ptDiff.y = (rcWind.bottom - rcWind.top) - rcClient.bottom;
+  MoveWindow(hWnd,rcWind.left, rcWind.top, nWidth + ptDiff.x, nHeight + ptDiff.y, TRUE);
 }
 
 static int win_init(QEditScreen *s, int w, int h)
@@ -166,7 +121,10 @@ static int win_init(QEditScreen *s, int w, int h)
     font_xsize = tm.tmAveCharWidth;
     font_ysize = tm.tmHeight;
 
-    xsize = w * font_xsize; /* xsize = 80 * font_xsize; */
+    if (w < 1) w = 80;
+    if (h < 1) h = 25;
+    
+    xsize = (w+1) * font_xsize; /* 1 extra for right margin symbols */
     ysize = h * font_ysize; /* ysize = 25 * font_ysize; */
 
     s->width = xsize;
@@ -185,7 +143,8 @@ static int win_init(QEditScreen *s, int w, int h)
     SelectObject(win_ctx.hdc, win_ctx.font);
 
     //    SetWindowPos (win_ctx.w, NULL, 0, 0, xsize, ysize, SWP_NOMOVE);
-
+    ClientResize(win_ctx.w, xsize, ysize);
+  
     ShowWindow(win_ctx.w, SW_SHOW);
     UpdateWindow(win_ctx.w);
     
